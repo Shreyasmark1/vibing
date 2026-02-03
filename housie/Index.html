@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Housie Digital Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        html, body { 
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        body { 
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        .sticky-caller { 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            backdrop-filter: blur(12px);
+            width: 100%;
+        }
+
+        .main-content {
+            padding-bottom: 120px;
+            width: 100%;
+            max-width: 100vw;
+        }
+
+        .ticket-table { 
+            width: 100%; 
+            table-layout: fixed; 
+            border-collapse: separate; 
+            border-spacing: 1px; 
+            background-color: #e2e8f0; 
+            border-radius: 6px; 
+            overflow: hidden; 
+        }
+
+        .ticket-cell { 
+            aspect-ratio: 1.1 / 1; 
+            text-align: center; 
+            font-weight: 800; 
+            font-size: 0.85rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+        }
+        
+        @media (max-width: 400px) {
+            .ticket-cell { font-size: 0.75rem; }
+        }
+
+        .ticket-cell-filled { background-color: #ffffff; cursor: pointer; color: #1e293b; }
+        .ticket-cell-empty { background-color: #f8fafc; }
+        
+        .strikethrough { color: #cbd5e1 !important; }
+        .strikethrough::after {
+            content: ''; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px;
+            background: rgba(239, 68, 68, 0.7); transform: rotate(-15deg); pointer-events: none;
+        }
+
+        .timer-ring { transition: stroke-dashoffset 0.1s linear; transform: rotate(-90deg); transform-origin: 50% 50%; }
+
+        .board-num {
+            aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 10px; border-radius: 4px; border: 1px solid #f1f5f9;
+            background-color: #fff; color: #cbd5e1; transition: all 0.2s;
+        }
+
+        .board-num.active { 
+            background-color: #10b981 !important; 
+            color: #fff !important; 
+            border-color: #059669; 
+            transform: scale(1.05); 
+        }
+
+        .tickets-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); 
+            gap: 0.75rem; 
+            width: 100%;
+        }
+
+        @media (max-width: 480px) { 
+            .tickets-grid { grid-template-columns: 1fr; } 
+        }
+        
+        .action-bar { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            background: rgba(255, 255, 255, 0.98); 
+            backdrop-filter: blur(8px);
+            border-top: 1px solid #e2e8f0; 
+            padding: 0.75rem 1rem; 
+            z-index: 90; 
+            display: flex; 
+            gap: 0.5rem; 
+            align-items: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.03);
+        }
+
+        .dev-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .social-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        .social-btn:active { transform: scale(0.9); }
+        .bg-linkedin { background: #0a66c2; }
+        .bg-github { background: #24292e; }
+    </style>
+</head>
+<body>
+
+    <header class="sticky-caller bg-slate-900 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative w-12 h-12 flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full">
+                        <circle cx="50%" cy="50%" r="42%" stroke="rgba(255,255,255,0.1)" stroke-width="3" fill="none" />
+                        <circle id="timer-ring" class="timer-ring" cx="50%" cy="50%" r="42%" stroke="#10b981" stroke-width="3" fill="none" stroke-dasharray="264" stroke-dashoffset="0" />
+                    </svg>
+                    <span id="current-num-display" class="text-xl font-800">--</span>
+                </div>
+                <div>
+                    <p id="nickname-display" class="text-emerald-400 text-[9px] font-900 uppercase tracking-tight">Ready</p>
+                    <p class="text-slate-400 text-[10px]"><span id="timer-text" class="text-white">10</span>s</p>
+                </div>
+            </div>
+            <div id="start-control">
+                <button id="start-btn" class="bg-emerald-500 hover:bg-emerald-600 px-5 py-2 rounded-full font-800 text-[10px] uppercase shadow-lg active:scale-95">START</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full mx-auto main-content">
+        <div class="flex flex-col lg:flex-row gap-4 p-3 max-w-7xl mx-auto">
+            <div class="w-full lg:w-1/3">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-[9px] font-900 text-slate-400 uppercase">Board</h2>
+                        <span id="stats-display" class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">0/90</span>
+                    </div>
+                    <div id="board-container" class="grid grid-cols-10 gap-0.5"></div>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-2/3">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 mb-3">
+                    <h2 class="text-[10px] font-900 text-slate-800 uppercase">My Tickets</h2>
+                    <button onclick="addTicket()" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform"><i class="fas fa-plus mr-1"></i>ADD</button>
+                </div>
+                <div id="tickets-list" class="tickets-grid"></div>
+                <div id="no-tickets-view" class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                    <p class="text-slate-400 text-xs">No tickets yet</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="action-bar">
+        <div class="dev-info">
+            <div class="flex flex-col mr-2">
+                <span class="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Developed by</span>
+                <span class="text-[13px] font-800 text-slate-900 leading-none">Shreyas</span>
+            </div>
+            <a href="https://www.linkedin.com/in/shreyasmark1" target="_blank" class="social-btn bg-linkedin" title="LinkedIn">
+                <i class="fab fa-linkedin-in"></i>
+            </a>
+            <a href="https://github.com/shreyasmark1" target="_blank" class="social-btn bg-github" title="GitHub">
+                <i class="fab fa-github"></i>
+            </a>
+        </div>
+        <button onclick="window.location.reload()" class="w-11 h-11 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all" title="Reload Game">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+
+    <div id="game-over-modal" class="fixed inset-0 bg-slate-900/90 hidden z-[200] flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl p-8 max-w-xs w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-900 mb-2">FINISHED!</h3>
+            <p class="text-slate-500 text-sm mb-6">All 90 numbers called.</p>
+            <button onclick="location.reload()" class="w-full bg-emerald-500 text-white font-900 py-4 rounded-2xl">NEW SESSION</button>
+        </div>
+    </div>
+
+    <script>
+        const NICKNAMES = { 1: "Kelly's Eye", 2: "One little duck", 11: "Legs eleven", 22: "Two little ducks", 88: "Two fat ladies", 90: "Top of the shop" };
+        let state = {
+            gameActive: false,
+            called: [],
+            pool: Array.from({length: 90}, (_, i) => i + 1),
+            tickets: [],
+            timeLeft: 10,
+            interval: null
+        };
+
+        const RING_LEN = 2 * Math.PI * 42;
+
+        function init() {
+            renderBoard();
+            renderTickets();
+            document.getElementById('start-btn').addEventListener('click', startGame);
+        }
+
+        function startGame() {
+            if (state.gameActive) return;
+            state.gameActive = true;
+            document.getElementById('start-control').style.display = 'none';
+            callNext();
+            startTimerLoop();
+        }
+
+        function startTimerLoop() {
+            state.timeLeft = 10;
+            if (state.interval) clearInterval(state.interval);
+            state.interval = setInterval(() => {
+                state.timeLeft -= 0.1;
+                if (state.timeLeft <= 0) {
+                    callNext();
+                    state.timeLeft = 10;
+                }
+                const ring = document.getElementById('timer-ring');
+                const text = document.getElementById('timer-text');
+                if(text) text.innerText = Math.ceil(Math.max(0, state.timeLeft));
+                if(ring) ring.style.strokeDashoffset = RING_LEN - (Math.max(0, state.timeLeft) / 10) * RING_LEN;
+            }, 100);
+        }
+
+        function callNext() {
+            if (state.pool.length === 0) {
+                state.gameActive = false;
+                clearInterval(state.interval);
+                document.getElementById('game-over-modal').classList.remove('hidden');
+                return;
+            }
+            const idx = Math.floor(Math.random() * state.pool.length);
+            const num = state.pool.splice(idx, 1)[0];
+            state.called.push(num);
+            document.getElementById('current-num-display').innerText = num;
+            document.getElementById('nickname-display').innerText = NICKNAMES[num] || `Number ${num}`;
+            document.getElementById('stats-display').innerText = `${state.called.length}/90`;
+            const cell = document.getElementById(`bn-${num}`);
+            if (cell) cell.classList.add('active');
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('board-container');
+            container.innerHTML = '';
+            for (let i = 1; i <= 90; i++) {
+                const div = document.createElement('div');
+                div.id = `bn-${i}`;
+                div.className = 'board-num';
+                div.innerText = i;
+                container.appendChild(div);
+            }
+            state.called.forEach(num => {
+                const cell = document.getElementById(`bn-${num}`);
+                if (cell) cell.classList.add('active');
+            });
+        }
+
+        function addTicket() {
+            const grid = Array.from({length: 3}, () => Array(9).fill(null));
+            const marked = Array.from({length: 3}, () => Array(9).fill(false));
+            
+            const colPools = Array.from({length: 9}, (_, i) => {
+                let s = i * 10 + (i === 0 ? 1 : 0), e = (i === 8) ? 90 : (i + 1) * 10 - 1;
+                let p = []; for(let j=s; j<=e; j++) p.push(j);
+                return p.sort(() => Math.random() - 0.5);
+            });
+
+            for (let r=0; r<3; r++) {
+                const cols = [0,1,2,3,4,5,6,7,8].sort(() => Math.random() - 0.5).slice(0, 5);
+                cols.forEach(c => grid[r][c] = colPools[c].pop());
+            }
+
+            for (let c=0; c<9; c++) {
+                const v = []; for(let r=0; r<3; r++) if(grid[r][c]) v.push(grid[r][c]);
+                v.sort((a,b) => a-b); let i=0;
+                for(let r=0; r<3; r++) if(grid[r][c]) grid[r][c] = v[i++];
+            }
+
+            state.tickets.push({ grid, marked });
+            renderTickets();
+        }
+
+        function toggleMark(ticketIdx, r, c) {
+            if (state.tickets[ticketIdx].grid[r][c] === null) return;
+            state.tickets[ticketIdx].marked[r][c] = !state.tickets[ticketIdx].marked[r][c];
+            renderTickets();
+        }
+
+        function renderTickets() {
+            const list = document.getElementById('tickets-list');
+            const empty = document.getElementById('no-tickets-view');
+            
+            if (state.tickets.length === 0) {
+                if(empty) empty.style.display = 'block';
+                if(list) list.innerHTML = '';
+                return;
+            }
+            
+            if(empty) empty.style.display = 'none';
+            
+            list.innerHTML = state.tickets.map((ticket, tIdx) => `
+                <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-1.5 px-1">
+                        <span class="text-[9px] font-900 text-slate-400">#${tIdx + 1}</span>
+                        <button onclick="removeTicket(${tIdx})" class="text-slate-300 text-xs"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="ticket-table">
+                        ${ticket.grid.map((row, rIdx) => `
+                            <div class="flex">
+                                ${row.map((val, cIdx) => `
+                                    <div 
+                                        onclick="toggleMark(${tIdx}, ${rIdx}, ${cIdx})" 
+                                        class="flex-1 ticket-cell ${val ? 'ticket-cell-filled' : 'ticket-cell-empty'} ${ticket.marked[rIdx][cIdx] ? 'strikethrough' : ''}"
+                                    >
+                                        ${val || ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removeTicket(idx) {
+            state.tickets.splice(idx, 1);
+            renderTickets();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
