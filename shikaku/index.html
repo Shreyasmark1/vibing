@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Minimalist Shikaku Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+        :root {
+            --bg-color: #f8fafc;
+            --accent-color: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-y: auto; 
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+        }
+
+        #grid-canvas {
+            background: white;
+            border-radius: 12px;
+            cursor: crosshair;
+            display: block;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .progress-track {
+            height: 8px;
+            background: #f1f5f9;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-color);
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .game-footer {
+            padding: 16px 20px 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .dev-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dev-label {
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            line-height: 1;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .dev-name {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1;
+        }
+
+        .social-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            transition: transform 0.2s;
+            text-decoration: none;
+        }
+
+        .social-btn:active { transform: scale(0.9); }
+        .bg-linkedin { background: #0a66c2; }
+        .bg-github { background: #24292e; }
+    </style>
+</head>
+<body class="pb-10">
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="max-w-lg mx-auto w-full px-5 py-8 box-border">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-200">S</div>
+                <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Shikaku</h1>
+            </div>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Geometry Puzzle</p>
+        </div>
+        <div class="text-right">
+            <div id="timer" class="text-2xl font-mono font-black text-slate-800 tabular-nums">00:00</div>
+            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Time Elapsed</p>
+        </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Board Coverage</span>
+            <span id="progress-text" class="text-xs font-bold text-emerald-600">0%</span>
+        </div>
+        <div class="progress-track">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <!-- Game Board -->
+    <div id="canvas-container" class="flex items-center justify-center relative mb-8">
+        <div class="w-full glass-panel p-2 sm:p-4 aspect-square flex items-center justify-center box-border">
+            <canvas id="grid-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <footer class="grid grid-cols-2 gap-4">
+        <button id="reset-btn" class="btn bg-white text-slate-600 font-bold py-4 rounded-2xl shadow-sm border border-slate-200 text-sm">
+            Clear Board
+        </button>
+        <button id="new-game-btn" class="btn bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 text-sm">
+            New Game
+        </button>
+        
+        <button id="solve-btn" class="col-span-2 btn bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 text-sm transition-all active:bg-slate-900">
+            <span id="solve-icon" class="text-lg">👁️</span> 
+            <span id="solve-text" class="uppercase tracking-widest">Show Solution</span>
+        </button>
+    </footer>
+</div>
+
+<!-- Victory Toast -->
+<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl opacity-0 transition-all pointer-events-none z-[110] transform translate-y-[20px] w-[90%] max-w-xs">
+    <div class="flex items-center gap-4">
+        <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">✨</div>
+        <div>
+            <div class="font-bold text-sm">Solved!</div>
+            <div class="text-[10px] opacity-70">Perfect geometric division.</div>
+        </div>
+    </div>
+</div>
+
+<footer class="game-footer">
+    <div class="dev-info">
+        <div class="flex flex-col mr-2">
+            <span class="dev-label">Developed by</span>
+            <span class="dev-name">Shreyas</span>
+        </div>
+        <a href="https://www.linkedin.com/in/shreyasmark1" target="_blank" class="social-btn bg-linkedin" title="LinkedIn">
+            <i class="fab fa-linkedin-in"></i>
+        </a>
+        <a href="https://github.com/shreyasmark1" target="_blank" class="social-btn bg-github" title="GitHub">
+            <i class="fab fa-github"></i>
+        </a>
+    </div>
+</footer>
+
+<script>
+    const canvas = document.getElementById('grid-canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const container = document.getElementById('canvas-container');
+    const timerDisplay = document.getElementById('timer');
+    const resetBtn = document.getElementById('reset-btn');
+    const newGameBtn = document.getElementById('new-game-btn');
+    const solveBtn = document.getElementById('solve-btn');
+    const solveText = document.getElementById('solve-text');
+    const solveIcon = document.getElementById('solve-icon');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const toast = document.getElementById('toast');
+
+    const GRID_SIZE = 7;
+    const COLORS = [
+        '#10b981', '#ef4444', '#3b82f6', '#f59e0b', 
+        '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+    ];
+
+    let level = { size: GRID_SIZE, clues: [], solution: [] };
+    let userRects = []; 
+    let isDrawing = false;
+    let isShowingSolution = false;
+    let startCell = null, currentCell = null;
+    let startTime = null, timerInterval = null;
+
+    function initGame() {
+        generateLevel();
+        userRects = [];
+        isShowingSolution = false;
+        solveText.textContent = "Show Solution";
+        solveIcon.textContent = "👁️";
+        solveBtn.className = "col-span-2 btn bg-slate-800 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 text-sm transition-all active:bg-slate-900";
+        resetTimer();
+        resizeCanvas();
+        updateProgress();
+        draw();
+    }
+
+    function generateLevel() {
+        const size = GRID_SIZE;
+        let grid, clues, solution;
+        let success = false;
+        let attempts = 0;
+
+        while (!success && attempts < 50) {
+            attempts++;
+            grid = Array.from({ length: size }, () => Array(size).fill(false));
+            clues = [];
+            solution = [];
+            success = true;
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    if (grid[y][x]) continue;
+
+                    let possibleRects = [];
+                    for (let w = 1; w <= 4; w++) {
+                        for (let h = 1; h <= 4; h++) {
+                            if (w * h <= 1) continue;
+                            if (x + w <= size && y + h <= size) {
+                                let fits = true;
+                                for (let i = 0; i < h; i++) {
+                                    for (let j = 0; j < w; j++) {
+                                        if (grid[y + i] && grid[y + i][x + j]) { fits = false; break; }
+                                    }
+                                    if (!fits) break;
+                                }
+                                if (fits) possibleRects.push({w, h});
+                            }
+                        }
+                    }
+
+                    if (possibleRects.length === 0) {
+                        success = false;
+                        break;
+                    }
+
+                    let choice = possibleRects[Math.floor(Math.random() * possibleRects.length)];
+                    for (let i = 0; i < choice.h; i++) {
+                        for (let j = 0; j < choice.w; j++) {
+                            if (grid[y + i]) grid[y + i][x + j] = true;
+                        }
+                    }
+
+                    const clueX = x + Math.floor(Math.random() * choice.w);
+                    const clueY = y + Math.floor(Math.random() * choice.h);
+                    clues.push({ 
+                        x: clueX, 
+                        y: clueY, 
+                        value: choice.w * choice.h, 
+                        isSquare: choice.w === choice.h 
+                    });
+                    solution.push({ x, y, w: choice.w, h: choice.h, colorIndex: (x + y) % COLORS.length });
+                }
+                if (!success) break;
+            }
+        }
+        level.clues = clues;
+        level.solution = solution;
+    }
+
+    function updateProgress() {
+        let totalArea = 0;
+        userRects.forEach(r => totalArea += (r.w * r.h));
+        const percent = Math.min(100, Math.round((totalArea / (GRID_SIZE * GRID_SIZE)) * 100));
+        progressFill.style.width = `${percent}%`;
+        progressText.textContent = `${percent}%`;
+    }
+
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height) - 16;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+        draw();
+    }
+
+    function getCellCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const offsetX = clientX - rect.left;
+        const offsetY = clientY - rect.top;
+        const cellSize = rect.width / GRID_SIZE;
+        return { 
+            x: Math.floor(offsetX / cellSize), 
+            y: Math.floor(offsetY / cellSize) 
+        };
+    }
+
+    function draw() {
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const cellSize = width / GRID_SIZE;
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, width);
+
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= GRID_SIZE; i++) {
+            ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, width); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(width, i * cellSize); ctx.stroke();
+        }
+
+        userRects.forEach(r => {
+            ctx.fillStyle = COLORS[r.colorIndex];
+            ctx.globalAlpha = isShowingSolution ? 0.05 : 0.25;
+            const pad = 2;
+            const rx = r.x * cellSize + pad;
+            const ry = r.y * cellSize + pad;
+            const rw = r.w * cellSize - pad * 2;
+            const rh = r.h * cellSize - pad * 2;
+            const radius = 6;
+            ctx.beginPath();
+            if (ctx.roundRect) { ctx.roundRect(rx, ry, rw, rh, radius); } 
+            else { ctx.rect(rx, ry, rw, rh); }
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = COLORS[r.colorIndex];
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        if (isShowingSolution) {
+            level.solution.forEach(r => {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
+                const pad = 5;
+                ctx.strokeRect(r.x * cellSize + pad, r.y * cellSize + pad, r.w * cellSize - pad * 2, r.h * cellSize - pad * 2);
+            });
+            ctx.setLineDash([]);
+        }
+
+        if (isDrawing && startCell && currentCell) {
+            const x = Math.min(startCell.x, currentCell.x);
+            const y = Math.min(startCell.y, currentCell.y);
+            const w = Math.abs(startCell.x - currentCell.x) + 1;
+            const h = Math.abs(startCell.y - currentCell.y) + 1;
+            ctx.fillStyle = '#10b981';
+            ctx.globalAlpha = 0.15;
+            ctx.fillRect(x * cellSize, y * cellSize, w * cellSize, h * cellSize);
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x * cellSize + 2, y * cellSize + 2, w * cellSize - 4, h * cellSize - 4);
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        level.clues.forEach(clue => {
+            const centerX = clue.x * cellSize + cellSize / 2;
+            const centerY = clue.y * cellSize + cellSize / 2;
+            ctx.strokeStyle = '#10b981';
+            ctx.globalAlpha = 0.35;
+            ctx.setLineDash([2, 2]);
+            ctx.lineWidth = 1.5;
+            const hintSize = cellSize * 0.55; 
+            if (clue.isSquare) {
+                ctx.strokeRect(centerX - hintSize/2, centerY - hintSize/2, hintSize, hintSize);
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(centerX - hintSize/2, centerY - hintSize/4);
+                ctx.lineTo(centerX + hintSize/2, centerY - hintSize/4);
+                ctx.lineTo(centerX + hintSize/2, centerY + hintSize/4);
+                ctx.lineTo(centerX - hintSize/2, centerY + hintSize/4);
+                ctx.closePath();
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1.0;
+            ctx.font = `800 ${cellSize * 0.45}px 'Plus Jakarta Sans'`;
+            ctx.fillStyle = isShowingSolution ? '#10b981' : '#0f172a';
+            ctx.fillText(clue.value, centerX, centerY);
+        });
+    }
+
+    function handleStart(e) {
+        if (isShowingSolution) return;
+        const coords = getCellCoords(e);
+        if (coords.x < 0 || coords.x >= GRID_SIZE || coords.y < 0 || coords.y >= GRID_SIZE) return;
+        if (!startTime) startTimer();
+        isDrawing = true;
+        startCell = coords;
+        currentCell = coords;
+        draw();
+    }
+
+    function handleMove(e) {
+        if (!isDrawing) return;
+        const newCell = getCellCoords(e);
+        if (newCell.x >= 0 && newCell.x < GRID_SIZE && newCell.y >= 0 && newCell.y < GRID_SIZE) {
+            if (newCell.x !== currentCell.x || newCell.y !== currentCell.y) {
+                currentCell = newCell;
+                draw();
+            }
+        }
+    }
+
+    function handleEnd() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        const x = Math.min(startCell.x, currentCell.x);
+        const y = Math.min(startCell.y, currentCell.y);
+        const w = Math.abs(startCell.x - currentCell.x) + 1;
+        const h = Math.abs(startCell.y - currentCell.y) + 1;
+        if (startCell.x === currentCell.x && startCell.y === currentCell.y) {
+            const index = userRects.findIndex(r => 
+                startCell.x >= r.x && startCell.x < r.x + r.w &&
+                startCell.y >= r.y && startCell.y < r.y + r.h
+            );
+            if (index !== -1) userRects.splice(index, 1);
+        } else {
+            userRects = userRects.filter(r => {
+                const overlap = !(x + w <= r.x || x >= r.x + r.w || y + h <= r.y || y >= r.y + r.h);
+                return !overlap;
+            });
+            userRects.push({ x, y, w, h, colorIndex: Math.floor(Math.random() * COLORS.length) });
+        }
+        updateProgress();
+        checkWin();
+        draw();
+    }
+
+    function checkWin() {
+        let totalArea = 0;
+        userRects.forEach(r => totalArea += (r.w * r.h));
+        if (totalArea < GRID_SIZE * GRID_SIZE) return;
+        for (let r of userRects) {
+            let cluesInRect = level.clues.filter(c => c.x >= r.x && c.x < r.x + r.w && c.y >= r.y && c.y < r.y + r.h);
+            if (cluesInRect.length !== 1 || cluesInRect[0].value !== r.w * r.h) return;
+        }
+        clearInterval(timerInterval);
+        showVictory();
+    }
+
+    function showVictory() {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translate(-50%, -20px)';
+        startConfetti();
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, 20px)';
+        }, 4000);
+    }
+
+    function startTimer() {
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const secs = (elapsed % 60).toString().padStart(2, '0');
+            timerDisplay.textContent = `${mins}:${secs}`;
+        }, 1000);
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        startTime = null;
+        timerDisplay.textContent = '00:00';
+    }
+
+    const confCanvas = document.getElementById('confetti-canvas');
+    const cctx = confCanvas.getContext('2d');
+    let particles = [];
+    function startConfetti() {
+        confCanvas.width = window.innerWidth;
+        confCanvas.height = window.innerHeight;
+        particles = [];
+        for(let i=0; i<80; i++) {
+            particles.push({
+                x: Math.random() * confCanvas.width,
+                y: -20,
+                r: 4 + Math.random() * 6,
+                d: Math.random() * 100,
+                color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                tilt: Math.random() * 10 - 10,
+                tiltAngleIncremental: Math.random() * 0.07 + 0.05,
+                tiltAngle: 0
+            });
+        }
+        requestAnimationFrame(updateConfetti);
+    }
+    function updateConfetti() {
+        cctx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+        let active = false;
+        particles.forEach(p => {
+            p.tiltAngle += p.tiltAngleIncremental;
+            p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+            p.tilt = Math.sin(p.tiltAngle) * 15;
+            if (p.y <= confCanvas.height) active = true;
+            cctx.beginPath();
+            cctx.lineWidth = p.r;
+            cctx.strokeStyle = p.color;
+            cctx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+            cctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+            cctx.stroke();
+        });
+        if(active) requestAnimationFrame(updateConfetti);
+    }
+
+    canvas.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('touchstart', (e) => { handleStart(e); e.preventDefault(); }, {passive: false});
+    window.addEventListener('touchmove', (e) => { handleMove(e); if (isDrawing) e.preventDefault(); }, {passive: false});
+    window.addEventListener('touchend', (e) => { handleEnd(e); });
+    
+    resetBtn.addEventListener('click', () => {
+        userRects = [];
+        isShowingSolution = false;
+        solveText.textContent = "Show Solution";
+        solveIcon.textContent = "👁️";
+        solveBtn.classList.remove('bg-emerald-500');
+        solveBtn.classList.add('bg-slate-800');
+        updateProgress();
+        draw();
+    });
+    
+    solveBtn.addEventListener('click', () => {
+        isShowingSolution = !isShowingSolution;
+        solveText.textContent = isShowingSolution ? "Hide Solution" : "Show Solution";
+        solveIcon.textContent = isShowingSolution ? "🙈" : "👁️";
+        if (isShowingSolution) {
+            solveBtn.classList.replace('bg-slate-800', 'bg-emerald-500');
+        } else {
+            solveBtn.classList.replace('bg-emerald-500', 'bg-slate-800');
+        }
+        draw();
+    });
+    
+    newGameBtn.addEventListener('click', initGame);
+    window.addEventListener('resize', resizeCanvas);
+    window.onload = initGame;
+</script>
+</body>
+</html>
